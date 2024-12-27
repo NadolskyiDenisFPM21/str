@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Головна{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+    <div class="container">
+        <div id="map" style="width: 70%; height: 100vh;"></div>
+        <div class="form-container">
+            <h2>Енергостанції</h2>
+            <div class="power-stations">
+                {% for station in power_stations %}
+                <div class="station">
+                    <button class="station-name">{{ station.name }}</button>
+                    <div class="station-details">
+                        <p>Назва: {{ station.name }}</p>
+                        <p>Кількість енергоблоків: {{ station.block_count }}</p>
+                        <p>Поточна потужність: {{ station.current_power }} МВт</p>
+                        <p>Максимальна потужність: {{ station.max_power }} МВт</p>
+                        {% if station.is_active %}
+                          <a href='{% url "deactivate" station.id %}' class="toggle-button">Вимкнути</a>
+                        {% else %}
+                          <a href='{% url "activate" station.id %}' class="toggle-button">Увімкнути</a>
+                        {% endif %}
+                        
+                        <p>Загальна потужність: {{ station.total_power }} МВт</p>
+                        <p>Стан: {% if station.is_active %} Активна {% else %} Неактивна {% endif %}</p>
+                    </div>
+                </div>
+                {% endfor %}
+                <h3>Необхідна потужність: {{ total_required_power }} МВт</h3>
+                <h3>Загальна потужність: {{ total_current_power }} МВт</h3>
+                <h3>{% if d_power >= 0 %} Потужності вистачає {% else %} Очікуються відключення {% endif %}</h3>
+            </div>
+        </div>
+  
+    </div>
+    <script>
+// Инициализация карты
+var map = L.map('map', {
+  dragging: false, // Отключение перемещения карты
+  zoomControl: false, // Отключение масштабного контроля
+  scrollWheelZoom: false, // Отключение зума с помощью колеса мыши
+  doubleClickZoom: false, // Отключение зума по двойному щелчку
+  touchZoom: false // Отключение зума на сенсорных устройствах
+}).setView([48.3794, 31.1656], 6); // Устанавливаем начальные координаты и уровень масштабирования
+
+// Добавление статического слоя OpenStreetMap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+  
+      // Передача данных о станциях из Django в JavaScript
+      var powerStationsData = {{ power_stations_json|safe }};
+  
+      // Добавление маркеров на карту для каждой энергостанции
+      powerStationsData.forEach(function(station) {
+        var latitude = station.fields.latitude;
+        var longitude = station.fields.longitude;
+    
+        var customIcon = L.icon({
+          iconUrl: '{% static "media/station_icon.png" %}', // Укажите путь к вашей иконке
+          iconSize: [38, 38], // Размеры вашей иконки
+          iconAnchor: [19, 38], // Точка, где иконка соответствует координатам маркера
+          popupAnchor: [0, -38] // Смещение всплывающего окна относительно точки привязки
+      });
+      var state = '';
+      if(station.fields.is_active){
+        state = 'Активна';
+      }else{
+        state = 'Неактивна';
+      }
+        // Создание маркера с указанными координатами
+        L.marker([latitude, longitude], { icon: customIcon }).addTo(map)
+            .bindPopup('<b>' + station.fields.name + '</b><br>' + 
+                       'Широта: ' + latitude + '<br>' +
+                       'Довгота: ' + longitude + '<br>' +
+                       'Стан: ' + state);
+    });
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var stationButtons = document.querySelectorAll('.station-name');
+  
+      stationButtons.forEach(function(button) {
+          button.addEventListener('click', function() {
+              var details = this.nextElementSibling;
+  
+              if (details.style.display === 'none' || details.style.display === '') {
+                  details.style.display = 'block';
+              } else {
+                  details.style.display = 'none';
+              }
+          });
+      });
+  });
+  </script>
+{% endblock %}
